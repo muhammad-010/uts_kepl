@@ -1,50 +1,20 @@
 stages:
   - install
   - test
-  - build
+  - deploy
   - pages
 
-variables:
-  PHP_VERSION: "8.2"
-  APP_ENV: "testing"
-  APP_DEBUG: "true"
-  APP_URL: "http://localhost"
-  SESSION_DRIVER: "array"
-  CACHE_STORE: "array"
-  QUEUE_CONNECTION: "sync"
-  MAIL_MAILER: "log"
-  SANCTUM_STATEFUL_DOMAINS: "localhost"
-  DB_CONNECTION: "sqlite"
-  DB_DATABASE: "$CI_PROJECT_DIR/database/database.testing.sqlite"
-
-cache:
-  key: ${CI_COMMIT_REF_SLUG}
-  paths:
-    - vendor/
-    - node_modules/
-
-# INSTALL DEPENDENCIES
 install:
   stage: install
   image: laravelsail/php82-composer:latest
   script:
-    - php -v
     - composer install --no-interaction --prefer-dist --no-progress
-    - mkdir -p database
-    - touch "$DB_DATABASE"
-    - |
-      if [ -z "$APP_KEY" ]; then
-        export APP_KEY="$(php -r "echo 'base64:'.base64_encode(random_bytes(32));")"
-        echo "Generated new APP_KEY for CI"
-      fi
   artifacts:
     paths:
       - vendor/
     expire_in: 1 week
 
-# RUN TESTS
 test:
-  test:
   stage: test
   image: laravelsail/php82-composer:latest
   dependencies:
@@ -53,44 +23,38 @@ test:
     DB_CONNECTION: sqlite
     DB_DATABASE: "$CI_PROJECT_DIR/database/database.testing.sqlite"
   script:
-    - echo "Creating SQLite file..."
+    - echo "🧱 Creating SQLite file..."
     - mkdir -p database
     - touch database/database.testing.sqlite
-    - |
-      if [ -z "$APP_KEY" ]; then
-        echo "No APP_KEY found, generating one..."
-        touch .env
-        php artisan key:generate --force
-      else
-        touch .env
-      fi
+    - echo "⚙️ Setting up .env"
+    - touch .env
+    - php artisan key:generate --force
     - php artisan migrate --force
     - php artisan test --colors=always
   artifacts:
     when: always
-    reports:
-      junit: storage/test-results/junit.xml
     paths:
       - storage/logs/
     expire_in: 1 week
 
-# BUILD FRONTEND (Vite / Blade)
-build:
-  stage: build
-  image: node:20-alpine
-  dependencies:
-    - install
+deploy:
+  stage: deploy
+  image: alpine:latest
   script:
-    - npm ci
-    - npm run build
-    - echo "✅ Assets built successfully"
-  artifacts:
-    paths:
-      - public/
-      - resources/
-    expire_in: 1 week
+    - echo "🚀 Deploying to ${ENV_NAME:-staging}"
+    - echo "(Simulation)"
+  environment:
+    name: $ENV_NAME
+  when: manual
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      variables:
+        ENV_NAME: "production"
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      variables:
+        ENV_NAME: "staging"
+    - when: manual
 
-# DEPLOY TO GITLAB PAGES
 pages:
   stage: pages
   image: alpine:latest
