@@ -11,10 +11,9 @@ until php artisan migrate --force; do
   echo "DB not ready, retry in 3s ($RETRIES left)"; sleep 3
 done
 
+php artisan migrate --force || (php artisan cache:table && php artisan migrate --force)
 php artisan db:seed --force || true
 php artisan storage:link || true
-php artisan cache:table --no-interaction || true
-php artisan migrate --force
 
 echo "[start] starting server on port ${PORT:-8080}"
 exec php artisan serve --host 0.0.0.0 --port ${PORT:-8080}
