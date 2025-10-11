@@ -1,45 +1,108 @@
 stages: [install, test, deploy]
-
 variables:
-  APP_ENV: testing
-  CI_ENVIRONMENT_NAME: ${CI_ENVIRONMENT_NAME}
   PHP_VERSION: "8.2"
+  APP_NAME: "UMKMInventory"
+  APP_ENV: "testing"
+  APP_DEBUG: "true"
+  APP_URL: "http://localhost"
+  DB_CONNECTION: "sqlite"
+  DB_DATABASE: ":memory:"
+  SESSION_DRIVER: "array"
+  CACHE_STORE: "array"
+  QUEUE_CONNECTION: "sync"
+  SANCTUM_STATEFUL_DOMAINS: "localhost"
+  MAIL_MAILER: "log"
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
     - vendor/
 
+# ——————————————————————————————————
+# Install dependencies (composer only)
+# ——————————————————————————————————
 install:
   stage: install
   image: laravelsail/php82-composer:latest
   script:
+    - |
+      cat > .env <<EOF
+      APP_NAME=${APP_NAME}
+      APP_ENV=${APP_ENV}
+      APP_KEY=
+      APP_DEBUG=${APP_DEBUG}
+      APP_URL=${APP_URL}
+
+      LOG_CHANNEL=stack
+      LOG_LEVEL=debug
+
+      DB_CONNECTION=${DB_CONNECTION}
+      DB_DATABASE=${DB_DATABASE}
+
+      SESSION_DRIVER=${SESSION_DRIVER}
+      CACHE_STORE=${CACHE_STORE}
+      QUEUE_CONNECTION=${QUEUE_CONNECTION}
+
+      SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS}
+      MAIL_MAILER=${MAIL_MAILER}
+      EOF
+
     - php -v
     - composer install --no-interaction --prefer-dist --no-progress
-    - cp .env.example .env
     - php artisan key:generate --force
-    - php artisan migrate --force
-    - php artisan db:seed --force
+
   artifacts:
     paths:
       - vendor/
       - .env
     expire_in: 1 week
 
+# ——————————————————————————————————
+# Run tests (SQLite in-memory)
+# ——————————————————————————————————
 unit_tests:
   stage: test
   image: laravelsail/php82-composer:latest
   dependencies:
     - install
   script:
-    - php artisan test --env=testing
+    - |
+      cat > .env.testing <<EOF
+      APP_ENV=testing
+      APP_KEY=
+      APP_DEBUG=true
+      APP_URL=http://localhost
 
+      DB_CONNECTION=sqlite
+      DB_DATABASE=:memory:
+
+      SESSION_DRIVER=array
+      CACHE_STORE=array
+      QUEUE_CONNECTION=sync
+
+      SANCTUM_STATEFUL_DOMAINS=localhost
+      MAIL_MAILER=log
+      EOF
+
+    - php artisan key:generate --env=testing --force
+    - php artisan migrate --env=testing --force
+    - php artisan test --env=testing --colors=always
+
+# ——————————————————————————————————
+# Deploy (simulasi) — environment name via rules
+# ——————————————————————————————————
 deploy:
   stage: deploy
   image: alpine:latest
   script:
-    - echo "Deploying to ${CI_ENVIRONMENT_NAME:-staging}"
+    - echo "Deploying to ${ENV_NAME}"
     - echo "(Simulation)"
   environment:
-    name: ${CI_ENVIRONMENT_NAME:-staging}
+    name: $ENV_NAME
   when: manual
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      variables: { ENV_NAME: "production" }
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      variables: { ENV_NAME: "staging" }
+    - when: manual
