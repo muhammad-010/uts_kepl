@@ -13,6 +13,8 @@ done
 
 php artisan db:seed --force || true
 php artisan storage:link || true
+php artisan cache:table --no-interaction || true
+php artisan migrate --force
 
 echo "[start] starting server on port ${PORT:-8080}"
 exec php artisan serve --host 0.0.0.0 --port ${PORT:-8080}
