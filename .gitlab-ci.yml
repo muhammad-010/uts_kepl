@@ -60,13 +60,40 @@ deploy:
 pages:
   stage: pages
   image: alpine:latest
-  dependencies:
-    - install
+  dependencies: []
   script:
-    - echo "🔧 Preparing GitLab Pages artifact..."
-    - mkdir -p public
-    - cp -r ./public/* ./public/
-    - cp -r resources/views public/
+    - echo "🔧 Preparing GitLab Pages artifact (static only)..."
+    - apk add --no-cache rsync
+    - rm -rf public_pages
+    - mkdir -p public_pages
+    # Salin aset statis dari /public (tanpa file PHP)
+    - rsync -a public/ public_pages/ --exclude='*.php'
+    # (Opsional) bawa juga assets front-end lain bila ada
+    # - rsync -a resources/views/ public_pages/views/   # hanya untuk referensi statis
+    # Pastikan ada index.html agar Pages punya landing
+    - |
+      if [ ! -f public_pages/index.html ]; then
+        cat > public_pages/index.html <<'HTML'
+        <!doctype html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>UMKM Inventory – GitLab Pages</title>
+          <link rel="icon" href="favicon.ico">
+          <link rel="stylesheet" href="build/assets/app.css">
+        </head>
+        <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding: 2rem;">
+          <h1>UMKM Inventory – GitLab Pages (Static)</h1>
+          <p>Ini adalah artefak statis untuk preview assets (CSS/JS/images). PHP/Blade tidak dieksekusi di GitLab Pages.</p>
+          <p>Gunakan aplikasi dinamis melalui backend (Docker/nginx) di server Anda.</p>
+        </body>
+        </html>
+        HTML
+      fi
+    # GitLab Pages mengharuskan folder artifact bernama persis "public"
+    - rm -rf public
+    - mv public_pages public
     - echo "✅ GitLab Pages content ready."
   artifacts:
     paths:
