@@ -30,8 +30,6 @@ install:
   script:
     - php -v
     - composer install --no-interaction --prefer-dist --no-progress
-    - npm ci
-    - npm run build || true
     - mkdir -p database
     - touch "$DB_DATABASE"
     - |
@@ -42,7 +40,6 @@ install:
   artifacts:
     paths:
       - vendor/
-      - node_modules/
     expire_in: 1 week
 
 # RUN TESTS
