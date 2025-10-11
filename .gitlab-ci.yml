@@ -24,10 +24,10 @@ test:
     APP_ENV: testing
     SESSION_DRIVER: file
   script:
-    - echo "🧱 Creating SQLite test database..."
+    - echo "Creating SQLite test database..."
     - mkdir -p database
     - touch database/database.testing.sqlite
-    - echo "⚙️ Setting up .env for test environment"
+    - echo "Setting up .env for test environment"
     - touch .env
     - php artisan key:generate --force
     - php artisan migrate --force
@@ -42,7 +42,7 @@ deploy:
   stage: deploy
   image: alpine:latest
   script:
-    - echo "🚀 Deploying to ${ENV_NAME:-staging}"
+    - echo "Deploying to ${ENV_NAME:-staging}"
     - echo "(Simulation)"
   environment:
     name: $ENV_NAME
