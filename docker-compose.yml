@@ -1,0 +1,33 @@
+version: '3.9'
+services:
+  app:
+    build: .
+    container_name: umkm_app
+    volumes:
+      - ./:/var/www
+    depends_on:
+      - db
+  web:
+    image: nginx:1.25-alpine
+    container_name: umkm_web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+  db:
+    image: mysql:8.0
+    container_name: umkm_db
+    environment:
+      MYSQL_DATABASE: umkm_inventory
+      MYSQL_USER: umkm
+      MYSQL_PASSWORD: umkm_secret
+      MYSQL_ROOT_PASSWORD: root_secret
+    ports:
+      - "33060:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+volumes:
+  dbdata:

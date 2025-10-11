@@ -1,0 +1,45 @@
+stages: [install, test, deploy]
+
+variables:
+  APP_ENV: testing
+  CI_ENVIRONMENT_NAME: ${CI_ENVIRONMENT_NAME}
+  PHP_VERSION: "8.2"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/
+
+install:
+  stage: install
+  image: laravelsail/php82-composer:latest
+  script:
+    - php -v
+    - composer install --no-interaction --prefer-dist --no-progress
+    - cp .env.example .env
+    - php artisan key:generate --force
+    - php artisan migrate --force
+    - php artisan db:seed --force
+  artifacts:
+    paths:
+      - vendor/
+      - .env
+    expire_in: 1 week
+
+unit_tests:
+  stage: test
+  image: laravelsail/php82-composer:latest
+  dependencies:
+    - install
+  script:
+    - php artisan test --env=testing
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - echo "Deploying to ${CI_ENVIRONMENT_NAME:-staging}"
+    - echo "(Simulation)"
+  environment:
+    name: ${CI_ENVIRONMENT_NAME:-staging}
+  when: manual
