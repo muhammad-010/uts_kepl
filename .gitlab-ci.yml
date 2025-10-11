@@ -59,7 +59,7 @@ pages:
   stage: pages
   image: alpine:latest
   dependencies:
-    - build
+    - install
   script:
     - echo "🔧 Preparing GitLab Pages artifact..."
     - mkdir -p public
