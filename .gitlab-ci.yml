@@ -22,11 +22,13 @@ test:
   variables:
     DB_CONNECTION: sqlite
     DB_DATABASE: "$CI_PROJECT_DIR/database/database.testing.sqlite"
+    APP_ENV: testing
+    SESSION_DRIVER: file
   script:
-    - echo "🧱 Creating SQLite file..."
+    - echo "🧱 Creating SQLite test database..."
     - mkdir -p database
     - touch database/database.testing.sqlite
-    - echo "⚙️ Setting up .env"
+    - echo "⚙️ Setting up .env for test environment"
     - touch .env
     - php artisan key:generate --force
     - php artisan migrate --force
