@@ -1,108 +1,102 @@
-stages: [install, test, deploy]
+stages:
+  - install
+  - test
+  - build
+  - pages
+
 variables:
   PHP_VERSION: "8.2"
-  APP_NAME: "UMKMInventory"
   APP_ENV: "testing"
   APP_DEBUG: "true"
   APP_URL: "http://localhost"
-  DB_CONNECTION: "sqlite"
-  DB_DATABASE: ":memory:"
   SESSION_DRIVER: "array"
   CACHE_STORE: "array"
   QUEUE_CONNECTION: "sync"
-  SANCTUM_STATEFUL_DOMAINS: "localhost"
   MAIL_MAILER: "log"
+  SANCTUM_STATEFUL_DOMAINS: "localhost"
+  DB_CONNECTION: "sqlite"
+  DB_DATABASE: "$CI_PROJECT_DIR/database/database.testing.sqlite"
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
     - vendor/
+    - node_modules/
 
-# ——————————————————————————————————
-# Install dependencies (composer only)
-# ——————————————————————————————————
+# INSTALL DEPENDENCIES
 install:
   stage: install
   image: laravelsail/php82-composer:latest
   script:
-    - |
-      cat > .env <<EOF
-      APP_NAME=${APP_NAME}
-      APP_ENV=${APP_ENV}
-      APP_KEY=
-      APP_DEBUG=${APP_DEBUG}
-      APP_URL=${APP_URL}
-
-      LOG_CHANNEL=stack
-      LOG_LEVEL=debug
-
-      DB_CONNECTION=${DB_CONNECTION}
-      DB_DATABASE=${DB_DATABASE}
-
-      SESSION_DRIVER=${SESSION_DRIVER}
-      CACHE_STORE=${CACHE_STORE}
-      QUEUE_CONNECTION=${QUEUE_CONNECTION}
-
-      SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS}
-      MAIL_MAILER=${MAIL_MAILER}
-      EOF
-
     - php -v
     - composer install --no-interaction --prefer-dist --no-progress
-    - php artisan key:generate --force
-
+    - npm ci
+    - npm run build || true
+    - mkdir -p database
+    - touch "$DB_DATABASE"
+    - |
+      if [ -z "$APP_KEY" ]; then
+        export APP_KEY="$(php -r "echo 'base64:'.base64_encode(random_bytes(32));")"
+        echo "Generated new APP_KEY for CI"
+      fi
   artifacts:
     paths:
       - vendor/
-      - .env
+      - node_modules/
     expire_in: 1 week
 
-# ——————————————————————————————————
-# Run tests (SQLite in-memory)
-# ——————————————————————————————————
-unit_tests:
+# RUN TESTS
+test:
   stage: test
   image: laravelsail/php82-composer:latest
   dependencies:
     - install
   script:
-    - |
-      cat > .env.testing <<EOF
-      APP_ENV=testing
-      APP_KEY=
-      APP_DEBUG=true
-      APP_URL=http://localhost
+    - php artisan key:generate --force
+    - php artisan migrate --force
+    - php artisan test --colors=always
+  artifacts:
+    when: always
+    reports:
+      junit: storage/test-results/junit.xml
+    paths:
+      - storage/logs/
+    expire_in: 1 week
 
-      DB_CONNECTION=sqlite
-      DB_DATABASE=:memory:
-
-      SESSION_DRIVER=array
-      CACHE_STORE=array
-      QUEUE_CONNECTION=sync
-
-      SANCTUM_STATEFUL_DOMAINS=localhost
-      MAIL_MAILER=log
-      EOF
-
-    - php artisan key:generate --env=testing --force
-    - php artisan migrate --env=testing --force
-    - php artisan test --env=testing --colors=always
-
-# ——————————————————————————————————
-# Deploy (simulasi) — environment name via rules
-# ——————————————————————————————————
-deploy:
-  stage: deploy
-  image: alpine:latest
+# BUILD FRONTEND (Vite / Blade)
+build:
+  stage: build
+  image: node:20-alpine
+  dependencies:
+    - install
   script:
-    - echo "Deploying to ${ENV_NAME}"
-    - echo "(Simulation)"
+    - npm ci
+    - npm run build
+    - echo "✅ Assets built successfully"
+  artifacts:
+    paths:
+      - public/
+      - resources/
+    expire_in: 1 week
+
+# DEPLOY TO GITLAB PAGES
+pages:
+  stage: pages
+  image: alpine:latest
+  dependencies:
+    - build
+  script:
+    - echo "🔧 Preparing GitLab Pages artifact..."
+    - mkdir -p public
+    - cp -r ./public/* ./public/
+    - cp -r resources/views public/
+    - echo "✅ GitLab Pages content ready."
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+    - dev
   environment:
-    name: $ENV_NAME
-  when: manual
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      variables: { ENV_NAME: "production" }
-    - if: '$CI_COMMIT_BRANCH == "dev"'
-      variables: { ENV_NAME: "staging" }
-    - when: manual
+    name: pages
+    url: https://${CI_PROJECT_NAMESPACE}.gitlab.io/${CI_PROJECT_NAME}
