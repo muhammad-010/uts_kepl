@@ -44,14 +44,26 @@ install:
 
 # RUN TESTS
 test:
+  test:
   stage: test
   image: laravelsail/php82-composer:latest
   dependencies:
     - install
+  variables:
+    DB_CONNECTION: sqlite
+    DB_DATABASE: "$CI_PROJECT_DIR/database/database.testing.sqlite"
   script:
-    - echo "Creating temporary .env for artisan..."
-    - touch .env
-    - php artisan key:generate --force
+    - echo "Creating SQLite file..."
+    - mkdir -p database
+    - touch database/database.testing.sqlite
+    - |
+      if [ -z "$APP_KEY" ]; then
+        echo "No APP_KEY found, generating one..."
+        touch .env
+        php artisan key:generate --force
+      else
+        touch .env
+      fi
     - php artisan migrate --force
     - php artisan test --colors=always
   artifacts:
