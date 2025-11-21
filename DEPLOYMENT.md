@@ -1,103 +1,170 @@
-# Vercel Deployment Guide
+# 🚂 Railway + Vercel Deployment Guide
 
-## ⚠️ Important: Vercel Limitation
+## Part 1: Deploy Backend ke Railway
 
-Vercel **tidak support PHP/Laravel backend**. Ada 2 pendekatan:
+### Step 1: Setup Railway Account
+1. Buka https://railway.app
+2. Sign up dengan GitHub/GitLab account Anda
+3. Klik **"New Project"**
 
-### Pendekatan 1: Frontend di Vercel + Backend di Railway (RECOMMENDED)
+### Step 2: Connect Repository
+1. Pilih **"Deploy from GitHub/GitLab repo"**
+2. Authorize Railway untuk akses GitLab
+3. Pilih repository: `fayyadhgitlab/uts_kepl`
+4. Railway akan otomatis detect Laravel
 
-**Frontend (Vercel):**
-1. Deploy Vue.js SPA ke Vercel
-2. Backend API tetap berjalan di tempat lain (Railway/Heroku/VPS)
+### Step 3: Configure Environment Variables
+Di Railway dashboard, klik project → **Variables** tab, tambahkan:
 
-**Backend (Railway/lain):**
-1. Deploy Laravel API ke Railway.app atau platform PHP lain
-2. Update `API_BASE_URL` di frontend
-
-### Pendekatan 2: Full Deploy ke Platform PHP
-
-Deploy seluruh aplikasi (frontend + backend) ke platform yang support PHP:
-- **Railway.app** (paling mudah, free tier)
-- **Laravel Forge** + DigitalOcean
-- **Shared Hosting** (Niagahoster, Hostinger)
-
----
-
-## Configuration Files Created
-
-### 1. `vercel.json`
-- Build configuration untuk Vercel
-- Output directory: `public`
-- Routes untuk SPA fallback
-
-### 2. `.vercelignore`
-- Exclude vendor, node_modules, dll dari deployment
-
-### 3. `public/index.html`
-- Static entry point untuk production
-- Loads built Vue.js assets
-
-### 4. `package.json`
-- Added `vercel-build` script
-
----
-
-## Deployment Steps untuk Vercel (Frontend Only)
-
-### Step 1: Update API Base URL
-
-Jika backend ada di server lain, update `resources/js/services/api.js`:
-
-```javascript
-const api = axios.create({
-  baseURL: process.env.VITE_API_URL || '/api', // Gunakan environment variable
-  // ...
-});
+```
+APP_NAME=UMKM Inventory
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=base64:vFXGJoxHUpN7ThsG8eGu9/SxR96o8MMYMsn2Y5YMeFI=
+DB_CONNECTION=sqlite
+SESSION_DRIVER=file
+CACHE_DRIVER=file
 ```
 
-Tambahkan di Vercel dashboard:
-- Environment Variable: `VITE_API_URL`
-- Value: `https://your-backend-url.com/api`
+**IMPORTANT:** Tambahkan variable ini setelah domain Railway tersedia:
+```
+APP_URL=https://your-app.railway.app
+SANCTUM_STATEFUL_DOMAINS=your-frontend.vercel.app
+SESSION_DOMAIN=.railway.app
+```
 
-### Step 2: Build dan Test Lokal
+### Step 4: Deploy
+1. Railway akan otomatis build dan deploy
+2. Tunggu sampai status **"Success"**
+3. Klik **"Generate Domain"** untuk dapat public URL
+4. Copy URL (contoh: `https://uts-kepl-production.up.railway.app`)
 
+### Step 5: Test Backend API
+Buka URL Railway Anda + `/api/login`:
+```
+https://your-app.railway.app/api/login
+```
+
+Harusnya return error method not allowed (karena butuh POST), ini berarti API jalan!
+
+### Step 6: Setup Database (Opsional)
+Railway sudah include SQLite secara default. Jika perlu PostgreSQL:
+1. Di Railway dashboard, klik **"New"** → **"Database"** → **"PostgreSQL"**
+2. Update environment variables dengan DB credentials otomatis dari Railway
+
+---
+
+## Part 2: Deploy Frontend ke Vercel
+
+### Step 1: Update Environment Variable
+Buat file `.env.production` di project Anda:
+
+```env
+VITE_API_URL=https://your-app.railway.app/api
+```
+
+Ganti `your-app.railway.app` dengan URL Railway yang sebenarnya.
+
+### Step 2: Test Build Lokal
 ```bash
 npm run build
-# Check public/build/ directory
 ```
+
+Pastikan berhasil tanpa error.
 
 ### Step 3: Deploy ke Vercel
 
-**Via Vercel CLI:**
+**Option A: Via Vercel Dashboard (Recommended)**
+
+1. Buka https://vercel.com
+2. Sign up/login dengan GitLab account
+3. Klik **"Add New Project"**
+4. Import repository: `fayyadhgitlab/uts_kepl`
+5. Configure project:
+   - **Framework Preset:** Other
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `public`
+   - **Install Command:** `npm install`
+
+6. **Environment Variables** (IMPORTANT):
+   - Key: `VITE_API_URL`
+   - Value: `https://your-app.railway.app/api` (URL Railway)
+
+7. Klik **"Deploy"**
+
+**Option B: Via Vercel CLI**
+
 ```bash
 npm i -g vercel
 vercel login
 vercel
 ```
 
-**Via Vercel Dashboard:**
-1. Import dari GitLab
-2. Framework Preset: **Other**
-3. Build Command: `npm run build`
-4. Output Directory: `public`
-5. Install Command: `npm install`
+Ikuti prompts, set environment variable di dashboard setelahnya.
 
-### Step 4: Configure Environment Variables
+### Step 4: Configure Domain (Opsional)
+1. Di Vercel dashboard → **Settings** → **Domains**
+2. Add custom domain jika punya
 
-Di Vercel Project Settings → Environment Variables:
-- `VITE_API_URL`: URL backend API anda
+### Step 5: Test Full Application
+1. Buka URL Vercel (contoh: `https://uts-kepl.vercel.app`)
+2. Login dengan: `admin@umkm.test` / `password123`
+3. Test CRUD customers dan products
 
 ---
 
-## Current Limitation
+## Troubleshooting
 
-⚠️ **Dengan setup saat ini, Vercel tidak akan work karena:**
-- Backend Laravel butuh PHP server
-- Database SQLite butuh file system yang writeable
-- Vercel adalah platform untuk frontend static/serverless
+### CORS Error
+Jika ada error CORS, update di Railway environment variables:
+```
+SANCTUM_STATEFUL_DOMAINS=your-frontend.vercel.app
+```
 
-**Solusi:**
-1. Deploy backend ke Railway: https://railway.app
-2. Deploy frontend ke Vercel dengan update API_URL ke Railway
+Dan di `config/cors.php`, pastikan:
+```php
+'paths' => ['api/*', 'sanctum/csrf-cookie'],
+'allowed_origins' => ['https://your-frontend.vercel.app'],
+'supports_credentials' => true,
+```
 
-Apakah Anda mau saya bantu setup Railway untuk backend?
+### 401 Unauthorized
+- Pastikan VITE_API_URL di Vercel sudah benar
+- Check Railway logs untuk error
+- Verify APP_KEY di Railway sudah di-set
+
+### Database Error di Railway
+- Railway auto-provision SQLite
+- Check migrations dengan: Railway dashboard → **Logs**
+- Jika perlu reset: Redeploy project
+
+---
+
+## Quick Reference
+
+**Railway (Backend):**
+- URL: https://your-app.railway.app
+- API Endpoints: `/api/login`, `/api/customers`, `/api/products`
+- Logs: Railway dashboard → Deployments → View logs
+
+**Vercel (Frontend):**
+- URL: https://your-app.vercel.app
+- Build logs: Vercel dashboard → Deployments
+- Environment: Vercel dashboard → Settings → Environment Variables
+
+---
+
+## Next Steps After Deployment
+
+1. ✅ Update `.env.production` dengan URL Railway yang real
+2. ✅ Commit dan push ke GitLab
+3. ✅ Vercel auto-redeploy dengan env variable baru
+4. ✅ Test full flow: login → CRUD → logout
+5. ✅ Update Railway SANCTUM_STATEFUL_DOMAINS dengan Vercel URL
+
+**File yang sudah dibuat:**
+- `Procfile` - Railway process definition
+- `railway.json` - Railway configuration
+- `railway-deploy.sh` - Post-deployment script
+- `.env.production.example` - Production env template
+- `resources/js/services/api.js` - Updated dengan env variable support
