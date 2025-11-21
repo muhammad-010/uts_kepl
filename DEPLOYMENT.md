@@ -1,170 +1,237 @@
-# 🚂 Railway + Vercel Deployment Guide
+# 🚀 Heroku + Vercel Deployment Guide
 
-## Part 1: Deploy Backend ke Railway
+## Part 1: Deploy Backend ke Heroku
 
-### Step 1: Setup Railway Account
-1. Buka https://railway.app
-2. Sign up dengan GitHub/GitLab account Anda
-3. Klik **"New Project"**
+### Step 1: Setup Heroku
+1. Buka https://heroku.com dan sign up/login
+2. Install Heroku CLI:
+   ```bash
+   brew tap heroku/brew && brew install heroku
+   # atau download dari: https://devcenter.heroku.com/articles/heroku-cli
+   ```
 
-### Step 2: Connect Repository
-1. Pilih **"Deploy from GitHub/GitLab repo"**
-2. Authorize Railway untuk akses GitLab
-3. Pilih repository: `fayyadhgitlab/uts_kepl`
-4. Railway akan otomatis detect Laravel
+3. Login via CLI:
+   ```bash
+   heroku login
+   ```
 
-### Step 3: Configure Environment Variables
-Di Railway dashboard, klik project → **Variables** tab, tambahkan:
-
-```
-APP_NAME=UMKM Inventory
-APP_ENV=production
-APP_DEBUG=false
-APP_KEY=base64:vFXGJoxHUpN7ThsG8eGu9/SxR96o8MMYMsn2Y5YMeFI=
-DB_CONNECTION=sqlite
-SESSION_DRIVER=file
-CACHE_DRIVER=file
+### Step 2: Create Heroku App
+```bash
+cd /Users/fayyadh/Documents/UGM/uts_Kepl
+heroku create uts-kepl-backend
+# atau biarkan Heroku generate nama random
 ```
 
-**IMPORTANT:** Tambahkan variable ini setelah domain Railway tersedia:
-```
-APP_URL=https://your-app.railway.app
-SANCTUM_STATEFUL_DOMAINS=your-frontend.vercel.app
-SESSION_DOMAIN=.railway.app
+### Step 3: Add PHP Buildpack
+```bash
+heroku buildpacks:set heroku/php
 ```
 
-### Step 4: Deploy
-1. Railway akan otomatis build dan deploy
-2. Tunggu sampai status **"Success"**
-3. Klik **"Generate Domain"** untuk dapat public URL
-4. Copy URL (contoh: `https://uts-kepl-production.up.railway.app`)
-
-### Step 5: Test Backend API
-Buka URL Railway Anda + `/api/login`:
+### Step 4: Set Environment Variables
+```bash
+heroku config:set APP_NAME="UMKM Inventory"
+heroku config:set APP_ENV=production
+heroku config:set APP_DEBUG=false
+heroku config:set APP_KEY=base64:vFXGJoxHUpN7ThsG8eGu9/SxR96o8MMYMsn2Y5YMeFI=
+heroku config:set DB_CONNECTION=sqlite
+heroku config:set SESSION_DRIVER=file
+heroku config:set CACHE_DRIVER=file
 ```
-https://your-app.railway.app/api/login
+
+**IMPORTANT:** Setelah deploy, update dengan domain:
+```bash
+heroku config:set APP_URL=https://your-app.herokuapp.com
+heroku config:set SANCTUM_STATEFUL_DOMAINS=your-frontend.vercel.app
 ```
 
-Harusnya return error method not allowed (karena butuh POST), ini berarti API jalan!
+### Step 5: Deploy ke Heroku
+```bash
+git push heroku main
+```
 
-### Step 6: Setup Database (Opsional)
-Railway sudah include SQLite secara default. Jika perlu PostgreSQL:
-1. Di Railway dashboard, klik **"New"** → **"Database"** → **"PostgreSQL"**
-2. Update environment variables dengan DB credentials otomatis dari Railway
+Tunggu sampai deployment selesai.
+
+### Step 6: Run Migrations
+```bash
+heroku run php artisan migrate --force
+heroku run php artisan db:seed --force
+```
+
+### Step 7: Test Backend
+```bash
+heroku open
+# Atau buka manual: https://your-app.herokuapp.com/api/login
+```
+
+Response error 405 = SUCCESS (karena butuh POST method)
 
 ---
 
 ## Part 2: Deploy Frontend ke Vercel
 
-### Step 1: Update Environment Variable
-Buat file `.env.production` di project Anda:
-
-```env
-VITE_API_URL=https://your-app.railway.app/api
-```
-
-Ganti `your-app.railway.app` dengan URL Railway yang sebenarnya.
-
-### Step 2: Test Build Lokal
+### Step 1: Get Heroku URL
 ```bash
-npm run build
+heroku info
+# Atau lihat di: https://dashboard.heroku.com
 ```
 
-Pastikan berhasil tanpa error.
+Copy URL (contoh: `https://uts-kepl-backend.herokuapp.com`)
 
-### Step 3: Deploy ke Vercel
+### Step 2: Deploy ke Vercel
 
-**Option A: Via Vercel Dashboard (Recommended)**
-
-1. Buka https://vercel.com
-2. Sign up/login dengan GitLab account
-3. Klik **"Add New Project"**
-4. Import repository: `fayyadhgitlab/uts_kepl`
-5. Configure project:
+1. Buka https://vercel.com dan login
+2. **Add New Project** → Import dari GitLab: `fayyadhgitlab/uts_kepl`
+3. Configure:
    - **Framework Preset:** Other
    - **Build Command:** `npm run build`
    - **Output Directory:** `public`
    - **Install Command:** `npm install`
 
-6. **Environment Variables** (IMPORTANT):
-   - Key: `VITE_API_URL`
-   - Value: `https://your-app.railway.app/api` (URL Railway)
+4. **Environment Variables** (CRITICAL):
+   ```
+   VITE_API_URL = https://your-app.herokuapp.com/api
+   ```
+   Ganti dengan URL Heroku yang sebenarnya
 
-7. Klik **"Deploy"**
+5. Click **Deploy**
 
-**Option B: Via Vercel CLI**
+### Step 3: Update Heroku CORS
+Setelah Vercel deploy, update Heroku:
 
 ```bash
-npm i -g vercel
-vercel login
-vercel
+heroku config:set SANCTUM_STATEFUL_DOMAINS=your-app.vercel.app
 ```
 
-Ikuti prompts, set environment variable di dashboard setelahnya.
+Ganti dengan domain Vercel Anda.
 
-### Step 4: Configure Domain (Opsional)
-1. Di Vercel dashboard → **Settings** → **Domains**
-2. Add custom domain jika punya
-
-### Step 5: Test Full Application
-1. Buka URL Vercel (contoh: `https://uts-kepl.vercel.app`)
-2. Login dengan: `admin@umkm.test` / `password123`
-3. Test CRUD customers dan products
+### Step 4: Test Application
+1. Buka Vercel URL
+2. Login: `admin@umkm.test` / `password123`
+3. Test CRUD operations
 
 ---
 
 ## Troubleshooting
 
-### CORS Error
-Jika ada error CORS, update di Railway environment variables:
-```
-SANCTUM_STATEFUL_DOMAINS=your-frontend.vercel.app
+### SQLite di Heroku (File System Read-Only)
+Heroku's ephemeral filesystem dapat reset setiap deploy. Solusi:
+
+**Option A: PostgreSQL (Recommended)**
+```bash
+heroku addons:create heroku-postgresql:essential-0
+# Gratis untuk limited rows
+
+# Update config
+heroku config:set DB_CONNECTION=pgsql
 ```
 
-Dan di `config/cors.php`, pastikan:
+**Option B: External Database**
+Gunakan database cloud seperti PlanetScale (MySQL) atau Supabase (PostgreSQL)
+
+### CORS Errors
+Update `config/cors.php`:
 ```php
-'paths' => ['api/*', 'sanctum/csrf-cookie'],
-'allowed_origins' => ['https://your-frontend.vercel.app'],
+'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:5173')],
 'supports_credentials' => true,
 ```
 
-### 401 Unauthorized
-- Pastikan VITE_API_URL di Vercel sudah benar
-- Check Railway logs untuk error
-- Verify APP_KEY di Railway sudah di-set
+Set environment:
+```bash
+heroku config:set FRONTEND_URL=https://your-app.vercel.app
+```
 
-### Database Error di Railway
-- Railway auto-provision SQLite
-- Check migrations dengan: Railway dashboard → **Logs**
-- Jika perlu reset: Redeploy project
+### 500 Errors
+Check logs:
+```bash
+heroku logs --tail
+```
+
+### Build Errors
+Ensure `composer.lock` is committed:
+```bash
+git add composer.lock
+git commit -m "Add composer.lock"
+git push heroku main
+```
 
 ---
 
-## Quick Reference
+## Heroku CLI Commands Reference
 
-**Railway (Backend):**
-- URL: https://your-app.railway.app
-- API Endpoints: `/api/login`, `/api/customers`, `/api/products`
-- Logs: Railway dashboard → Deployments → View logs
+```bash
+# View logs
+heroku logs --tail
+
+# Run artisan commands
+heroku run php artisan migrate
+heroku run php artisan db:seed
+heroku run php artisan cache:clear
+
+# View app info
+heroku info
+
+# Open app in browser
+heroku open
+
+# Restart app
+heroku restart
+
+# View config
+heroku config
+
+# Set config
+heroku config:set KEY=value
+```
+
+---
+
+## Files untuk Heroku
+
+✅ **Procfile** - Heroku process definition
+```
+web: vendor/bin/heroku-php-apache2 public/
+```
+
+✅ **composer.json** - Already configured
+✅ **.env.production.example** - Template untuk production
+
+---
+
+## Deployment Checklist
+
+**Heroku (Backend):**
+- [ ] Create Heroku app
+- [ ] Set buildpack: `heroku/php`
+- [ ] Configure environment variables
+- [ ] Push to Heroku: `git push heroku main`
+- [ ] Run migrations: `heroku run php artisan migrate --force`
+- [ ] Seed database: `heroku run php artisan db:seed --force`
+- [ ] Test API endpoint
+- [ ] Update SANCTUM_STATEFUL_DOMAINS
 
 **Vercel (Frontend):**
-- URL: https://your-app.vercel.app
-- Build logs: Vercel dashboard → Deployments
-- Environment: Vercel dashboard → Settings → Environment Variables
+- [ ] Import project from GitLab
+- [ ] Set VITE_API_URL to Heroku URL
+- [ ] Deploy
+- [ ] Test full application
+
+**Post-Deployment:**
+- [ ] Update Heroku SANCTUM_STATEFUL_DOMAINS with Vercel URL
+- [ ] Test login flow
+- [ ] Test CRUD operations
+- [ ] Check CORS configuration
 
 ---
 
-## Next Steps After Deployment
+## Production URLs
 
-1. ✅ Update `.env.production` dengan URL Railway yang real
-2. ✅ Commit dan push ke GitLab
-3. ✅ Vercel auto-redeploy dengan env variable baru
-4. ✅ Test full flow: login → CRUD → logout
-5. ✅ Update Railway SANCTUM_STATEFUL_DOMAINS dengan Vercel URL
+**Backend (Heroku):**
+- App: `https://your-app.herokuapp.com`
+- API: `https://your-app.herokuapp.com/api`
 
-**File yang sudah dibuat:**
-- `Procfile` - Railway process definition
-- `railway.json` - Railway configuration
-- `railway-deploy.sh` - Post-deployment script
-- `.env.production.example` - Production env template
-- `resources/js/services/api.js` - Updated dengan env variable support
+**Frontend (Vercel):**
+- App: `https://your-app.vercel.app`
+
+**Environment Variables:**
+- Heroku: Set via `heroku config:set` or dashboard
+- Vercel: Set via dashboard → Settings → Environment Variables
