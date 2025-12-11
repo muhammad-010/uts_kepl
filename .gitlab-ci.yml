@@ -3,6 +3,9 @@ stages:
   - test
   - deploy
 
+variables:
+  COMPOSER_MEMORY_LIMIT: -1
+
 install:
   stage: install
   image: laravelsail/php82-composer:latest
@@ -20,17 +23,15 @@ test:
     - install
   variables:
     DB_CONNECTION: sqlite
-    DB_DATABASE: "$CI_PROJECT_DIR/database/database.testing.sqlite"
+    DB_DATABASE: ":memory:"
     APP_ENV: testing
-    SESSION_DRIVER: file
+    APP_KEY: base64:dGVzdGtleWZvcmNpdGVzdGluZzEyMzQ1Njc4OTAxMjM0
+    SESSION_DRIVER: array
+    CACHE_DRIVER: array
+    QUEUE_CONNECTION: sync
   script:
-    - echo "Creating SQLite test database..."
-    - mkdir -p database
-    - touch database/database.testing.sqlite
-    - echo "Setting up .env for test environment"
-    - touch .env
+    - cp .env.example .env
     - php artisan key:generate --force
-    - php artisan migrate --force
     - php artisan test --colors=always
   artifacts:
     when: always
@@ -38,20 +39,48 @@ test:
       - storage/logs/
     expire_in: 1 week
 
-deploy:
+# Deploy to Vercel (Frontend)
+deploy_vercel:
+  stage: deploy
+  image: node:18-alpine
+  before_script:
+    - npm install -g vercel
+  script:
+    - npm ci
+    - npm run build
+    - echo "Vercel deployment would happen here"
+    - echo "Run 'vercel --prod' with VERCEL_TOKEN to deploy"
+  environment:
+    name: production-frontend
+    url: https://uts-kepl.vercel.app
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+
+# Deploy to Render (Full App)
+deploy_render:
   stage: deploy
   image: alpine:latest
   script:
-    - echo "Deploying to ${ENV_NAME:-staging}"
-    - echo "(Simulation)"
+    - echo "Render deployment is automatic via GitHub/GitLab webhook"
+    - echo "Push to main triggers Render deploy via render.yaml Blueprint"
+    - echo "Manual trigger via Render Dashboard if needed"
   environment:
-    name: $ENV_NAME
-  when: manual
+    name: production
+    url: https://umkm-inventory.onrender.com
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-      variables:
-        ENV_NAME: "production"
-    - if: '$CI_COMMIT_BRANCH == "dev"'
-      variables:
-        ENV_NAME: "staging"
-    - when: manual
+      when: manual
+
+# Deploy to Heroku (Legacy)
+deploy_heroku:
+  stage: deploy
+  image: ruby:latest
+  before_script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+  script:
+    - echo "Heroku deployment disabled - using Render instead"
+  rules:
+    - when: never
