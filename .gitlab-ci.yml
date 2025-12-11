@@ -21,17 +21,17 @@ test:
   image: laravelsail/php82-composer:latest
   dependencies:
     - install
-  variables:
-    DB_CONNECTION: sqlite
-    DB_DATABASE: ":memory:"
-    APP_ENV: testing
-    APP_KEY: base64:dGVzdGtleWZvcmNpdGVzdGluZzEyMzQ1Njc4OTAxMjM0
-    SESSION_DRIVER: array
-    CACHE_DRIVER: array
-    QUEUE_CONNECTION: sync
   script:
+    # Create .env file with required variables
     - cp .env.example .env
-    - php artisan key:generate --force
+    - echo "APP_KEY=base64:dGVzdGtleWZvcmNpdGVzdGluZzEyMzQ1Njc4OTAxMjM0NTY=" >> .env
+    - echo "APP_ENV=testing" >> .env
+    - echo "DB_CONNECTION=sqlite" >> .env
+    - echo "DB_DATABASE=:memory:" >> .env
+    - echo "SESSION_DRIVER=array" >> .env
+    - echo "CACHE_DRIVER=array" >> .env
+    - echo "QUEUE_CONNECTION=sync" >> .env
+    # Run tests (phpunit.xml already configures in-memory SQLite)
     - php artisan test --colors=always
   artifacts:
     when: always
@@ -72,14 +72,10 @@ deploy_render:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: manual
 
-# Deploy to Heroku (Legacy)
+# Deploy to Heroku (Legacy - Disabled)
 deploy_heroku:
   stage: deploy
   image: ruby:latest
-  before_script:
-    - apt-get update -qy
-    - apt-get install -y ruby-dev
-    - gem install dpl
   script:
     - echo "Heroku deployment disabled - using Render instead"
   rules:
