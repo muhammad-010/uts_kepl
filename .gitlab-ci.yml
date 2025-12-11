@@ -26,12 +26,18 @@ test:
     - cp .env.example .env
     - echo "APP_KEY=base64:dGVzdGtleWZvcmNpdGVzdGluZzEyMzQ1Njc4OTAxMjM0NTY=" >> .env
     - echo "APP_ENV=testing" >> .env
-    - echo "DB_CONNECTION=sqlite" >> .env
-    - echo "DB_DATABASE=:memory:" >> .env
     - echo "SESSION_DRIVER=array" >> .env
     - echo "CACHE_DRIVER=array" >> .env
     - echo "QUEUE_CONNECTION=sync" >> .env
-    # Run tests (phpunit.xml already configures in-memory SQLite)
+    # Create SQLite database file
+    - mkdir -p database
+    - touch database/database.sqlite
+    - echo "DB_CONNECTION=sqlite" >> .env
+    - echo "DB_DATABASE=${CI_PROJECT_DIR}/database/database.sqlite" >> .env
+    # Clear config cache and run migrations
+    - php artisan config:clear
+    - php artisan migrate --force
+    # Run tests
     - php artisan test --colors=always
   artifacts:
     when: always
