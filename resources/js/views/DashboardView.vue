@@ -20,6 +20,16 @@
           :value="productStore.totalStock"
           label="Total Stock"
         />
+        <StatsCard 
+          icon="fas fa-tags"
+          :value="categoryStore.pagination?.total || 0"
+          label="Total Categories"
+        />
+        <StatsCard 
+          icon="fas fa-truck"
+          :value="supplierStore.pagination?.total || 0"
+          label="Total Suppliers"
+        />
       </div>
 
       <!-- Customers Table -->
@@ -27,6 +37,12 @@
 
       <!-- Products Table -->
       <ProductList />
+
+      <!-- Categories Table -->
+      <CategoryList />
+
+      <!-- Suppliers Table -->
+      <SupplierList />
     </div>
   </div>
 </template>
@@ -36,22 +52,32 @@ import { onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useCustomerStore } from '../stores/customer';
 import { useProductStore } from '../stores/product';
+import { useCategoryStore } from '../stores/category';
+import { useSupplierStore } from '../stores/supplier';
 import Navbar from '../components/Navbar.vue';
 import StatsCard from '../components/StatsCard.vue';
 import CustomerList from '../components/CustomerList.vue';
 import ProductList from '../components/ProductList.vue';
+import CategoryList from '../components/CategoryList.vue';
+import SupplierList from '../components/SupplierList.vue';
 
 const authStore = useAuthStore();
 const customerStore = useCustomerStore();
 const productStore = useProductStore();
+const categoryStore = useCategoryStore();
+const supplierStore = useSupplierStore();
 
 onMounted(async () => {
   // Verify authentication
   await authStore.fetchProfile();
   
   // Load data
-  await customerStore.fetchCustomers();
-  await productStore.fetchProducts();
+  await Promise.all([
+    customerStore.fetchCustomers(),
+    productStore.fetchProducts(),
+    categoryStore.fetchCategories(),
+    supplierStore.fetchSuppliers(),
+  ]);
 });
 </script>
 
@@ -92,7 +118,7 @@ onMounted(async () => {
 
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
