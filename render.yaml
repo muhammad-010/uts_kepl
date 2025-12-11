@@ -1,0 +1,53 @@
+# Render Blueprint
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Laravel + Vue Web Service
+  - type: web
+    name: umkm-inventory
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    plan: free
+    envVars:
+      - key: APP_NAME
+        value: "UMKM Inventory"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_URL
+        fromService:
+          type: web
+          name: umkm-inventory
+          property: host
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        fromDatabase:
+          name: umkm-db
+          property: connectionString
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: SANCTUM_STATEFUL_DOMAINS
+        fromService:
+          type: web
+          name: umkm-inventory
+          property: host
+
+databases:
+  - name: umkm-db
+    plan: free
+    databaseName: umkm_inventory
+    user: umkm
